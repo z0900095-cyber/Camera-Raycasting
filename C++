@@ -1,0 +1,109 @@
+#include <iostream>
+#include <cmath>
+#include <vector>
+
+// Розміри нашої 2D-карти
+const int MAP_WIDTH = 8;
+const int MAP_HEIGHT = 8;
+
+int worldMap[MAP_HEIGHT][MAP_WIDTH] = {
+    {1,1,1,1,1,1,1,1},
+    {1,0,0,0,0,0,0,1},
+    {1,0,1,1,0,1,0,1},
+    {1,0,1,0,0,1,0,1},
+    {1,0,0,0,0,0,0,1},
+    {1,0,1,1,0,1,1,1},
+    {1,0,0,0,0,0,0,1},
+    {1,1,1,1,1,1,1,1}
+};
+
+int main() {
+    // Позиція гравця на 2D-карті
+    double posX = 3.5, posY = 3.5; 
+    // Напрямок погляду (вектор)
+    double dirX = -1.0, dirY = 0.0; 
+    // Площина камери (для створення кута огляду / FOV)
+    double planeX = 0.0, planeY = 0.66; 
+
+    // Ширина вікна (кількість вертикальних ліній/променів на екрані)
+    int screenWidth = 40; 
+
+    std::cout << "--- Симуляція Raycasting променів ---" << std::endl;
+
+    // Цикл по кожному стовпчику екрана (променю)
+    for (int x = 0; x < screenWidth; x++) {
+        // Обчислюємо координату x для поточного променя в просторі камери
+        double cameraX = 2.0 * x / (double)screenWidth - 1.0;
+        double rayDirX = dirX + planeX * cameraX;
+        double rayDirY = dirY + planeY * cameraX;
+
+        // Поточна позиція на карті для цього променя
+        int mapX = (int)posX;
+        int mapY = (int)posY;
+
+        // Довжина променя від поточної позиції до наступної сторони сітки (X або Y)
+        double sideDistX;
+        double sideDistY;
+
+        // Довжина променя між сусідніми сторонами сітки
+        double deltaDistX = std::abs(1.0 / rayDirX);
+        double deltaDistY = std::abs(1.0 / rayDirY);
+        double perpWallDist;
+
+        // Крок уперед чи назад по осі X або Y (-1 або 1)
+        int stepX;
+        int stepY;
+
+        int hit = 0; // Чи впинився промінь у стіну?
+        int side;    // Яку стіну вдарили (горизонтальну чи вертикальну)
+
+        // Визначаємо кроки та початкову відстань до сітки
+        if (rayDirX < 0) {
+            stepX = -1;
+            sideDistX = (posX - mapX) * deltaDistX;
+        } else {
+            stepX = 1;
+            sideDistX = (mapX + 1.0 - posX) * deltaDistX;
+        }
+        if (rayDirY < 0) {
+            stepY = -1;
+            sideDistY = (posY - mapY) * deltaDistY;
+        } else {
+            stepY = 1;
+            sideDistY = (mapY + 1.0 - posY) * deltaDistY;
+        }
+
+        // Цикл алгоритму DDA (цифрового аналізатора диференціалів) — промінь летить сіткою
+        while (hit == 0) {
+            // Переходимо до наступного квадрата карти по X або Y
+            if (sideDistX < sideDistY) {
+                sideDistX += deltaDistX;
+                mapX += stepX;
+                side = 0;
+            } else {
+                sideDistY += deltaDistY;
+                mapY += stepY;
+                side = 1;
+            }
+            // Перевіряємо, чи є стіна в цій точці карти
+            if (worldMap[mapX][mapY] > 0) hit = 1;
+        }
+
+        // Обчислюємо відстань до стіни (уникнення ефекту «риб'ячого ока»)
+        if (side == 0)
+            perpWallDist = (sideDistX - deltaDistX);
+        else
+            perpWallDist = (sideDistY - deltaDistY);
+
+        // Висота лінії на екрані (обернено пропорційна відстані)
+        int lineHeight = (int)(screenWidth / perpWallDist);
+
+        // Виводимо інформацію для прикладу (скільки пройшов промінь і яка висота смуги)
+        if (x % 5 == 0) { // Виводимо лише кожен 5-й промінь для прикладу в консолі
+            std::cout << "Промінь " << x << ": відстань = " << perpWallDist 
+                      << ", висота лінії на екрані = " << lineHeight << std::endl;
+        }
+    }
+
+    return 0;
+}
